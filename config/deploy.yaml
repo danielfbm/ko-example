@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ko-example
+spec:
+  selector:
+    matchLabels:
+      ko: example
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        ko: example
+    spec:
+      containers:
+      - name: hello-world
+        # This is the import path for the Go binary to build and run.
+        image: github.com/danielfbm/ko-example
+        ports:
+        - containerPort: 8080
