@@ -1,0 +1,44 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: s2i-build
+spec:
+  params:
+    - name: pathToContext
+      type: string
+      default: /workspace/docker-source
+  resources:
+    inputs:
+      - name: docker-source
+        type: git
+      - name: builderImage
+        type: image
+    outputs:
+      - name: builtImage
+        type: image
+  steps:
+    - name: build
+      image: danielfbm/s2i-builder:latest
+      # specifying DOCKER_CONFIG is required to allow kaniko to detect docker credential
+      env:
+        - name: "DOCKER_CONFIG"
+          value: "/tekton/home/.docker/"
+      command:
+        - /usr/local/bin/s2i
+      args:
+        - build
+        - $(params.pathToContext)
+        - $(resources.inputs.builderImage.url)
+        - $(resources.outputs.builtImage.url)
+        - --dockercfg-path=$DOCKER_CONFIG/config.json
+    - name: push
+      image: danielfbm/s2i-builder:latest
+      # specifying DOCKER_CONFIG is required to allow kaniko to detect docker credential
+      env:
+        - name: "DOCKER_CONFIG"
+          value: "/tekton/home/.docker/"
+      command:
+        - /usr/local/bin/docker
+      args:
+        - push
+        - $(resources.outputs.builtImage.url)

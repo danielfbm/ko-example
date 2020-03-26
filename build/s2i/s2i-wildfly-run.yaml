@@ -1,0 +1,31 @@
+apiVersion: tekton.dev/v1alpha1
+kind: TaskRun
+metadata:
+  name: s2i-wildfly-run
+spec:
+  # Use service account with git and image repo credentials
+  serviceAccountName: tutorial-service
+  taskRef:
+    name: s2i
+  params:
+  - name: BUILDER_IMAGE
+    value: openshift/wildfly-101-centos7
+  - name: PATH_CONTEXT
+    value: helloworld
+  resources:
+    inputs:
+    - name: source
+      resourceSpec:
+        type: git
+        params:
+        - name: url
+          value: https://github.com/wildfly/quickstart
+        - name: revision
+          value: 10.x
+    outputs:
+    - name: image
+      resourceSpec:
+        type: image
+        params:
+        - name: url
+          value: danielfbm/wildfly-s2i-ex

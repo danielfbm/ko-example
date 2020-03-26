@@ -1,0 +1,9 @@
+apiVersion: tekton.dev/v1alpha1
+kind: PipelineResource
+metadata:
+  name: s2i-builder-image
+spec:
+  type: image
+  params:
+    - name: url
+      value: danielfbm/s2i-builder

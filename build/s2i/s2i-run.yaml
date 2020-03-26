@@ -1,0 +1,27 @@
+apiVersion: tekton.dev/v1alpha1
+kind: TaskRun
+metadata:
+  name: s2i-nodejs-taskrun
+spec:
+  # Use service account with git and image repo credentials
+  serviceAccountName: tutorial-service
+  taskRef:
+    name: s2i
+  params:
+  - name: BUILDER_IMAGE
+    value: docker.io/centos/nodejs-8-centos7
+  resources:
+    inputs:
+    - name: source
+      resourceSpec:
+        type: git
+        params:
+        - name: url
+          value: https://github.com/sclorg/nodejs-ex
+    outputs:
+    - name: image
+      resourceSpec:
+        type: image
+        params:
+        - name: url
+          value: danielfbm/nodejs-s2i-ex
