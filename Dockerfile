@@ -1,10 +1,10 @@
 FROM index.alauda.cn/library/golang:1.13-alpine as builder
 
-ENV GO111MODULE=on
-WORKDIR /workspace
 COPY . /workspace
+WORKDIR /workspace
 
-RUN ls -lha && CGO_ENABLED=0 go build -o bin/app .
+RUN ls -lah
+RUN CGO_ENABLED=0 go build -o bin/app .
 
 FROM index.alauda.cn/library/alpine:3.11
 
