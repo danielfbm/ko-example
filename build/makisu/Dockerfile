@@ -1,8 +1,8 @@
 FROM gcr.io/uber-container-tools/makisu:latest as origin
 
-FROM alpine
+FROM ubuntu
 
 COPY --from=origin /makisu-internal /makisu-internal
 
-ENTRYPOINT [ "/bin/sh", "-c" ]
-CMD [ "/bin/sh"]
+ENTRYPOINT [ "/bin/bash", "-c" ]
+CMD [ "/bin/bash"]
