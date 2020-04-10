@@ -1,0 +1,71 @@
+pipeline {
+  agent {
+    kubernetes {
+      //cloud 'kubernetes'
+      yaml '''
+kind: Pod
+metadata:
+  name: s2i
+spec:
+  containers:
+  - name: jnlp
+    image: index.alauda.cn/alaudaorg/jnlp-slave:latest
+    imagePullPolicy: Always
+    workingDir: /home/jenkins/agent
+    env:
+    - name: JENKINS_URL
+      value: http://jenkins.default:8080
+    - name: "JENKINS_TUNNEL"
+      value: "jenkins-agent.default:50000"
+    volumeMounts:
+      - mountPath: "/home/jenkins/agent"
+        name: "workspace-volume"
+        readOnly: false
+  - name: s2i
+    image: index.alauda.cn/alaudak8s/s2i
+    imagePullPolicy: Always
+    command:
+    - cat
+    tty: true
+    workingDir: "/home/jenkins/agent"
+    volumeMounts:
+    - mountPath: "/home/jenkins/agent"
+      name: "workspace-volume"
+      readOnly: false
+    - mountPath: "/var/run/docker.sock"
+      name: "volume-1"
+      readOnly: false
+  volumes:
+  - hostPath:
+      path: "/var/run/docker.sock"
+    name: "volume-1"
+  - emptyDir:
+      medium: ""
+    name: "workspace-volume"
+'''
+    }
+  }
+  stages{
+        stage("Clone"){
+           steps{
+             git url:"https://github.com/danielfbm/ko-example"
+           }
+        }
+        stage("Build"){
+            steps {
+            script {
+              container('s2i') {
+
+                withCredentials([usernamePassword(credentialsId: 'daniel-jfrog', passwordVariable: 'PASS', usernameVariable: 'USER')]) {
+                    sh "docker login jfrog-demo.alauda.cn/docker -u ${USER} -p ${PASS}"
+                }
+
+                sh script: "s2i build . index.alauda.cn/alaudak8s/s2i:golang jfrog-demo.alauda.cn/docker/ko-example-s2i"
+                sh script: "docker push jfrog-demo.alauda.cn/docker/ko-example-s2i"
+                
+              }
+            }
+          }
+        }
+     }
+}

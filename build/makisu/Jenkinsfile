@@ -1,33 +1,93 @@
-podTemplate(yaml: """
+pipeline {
+  agent {
+    kubernetes {
+      //cloud 'kubernetes'
+      yaml '''
 kind: Pod
+metadata:
+  name: makisu
 spec:
   containers:
-  - name: kaniko
-    image: gcr.io/kaniko-project/executor:debug-539ddefcae3fd6b411a95982a830d987f4214251
+  - name: jnlp
+    image: index.alauda.cn/alaudaorg/jnlp-slave:latest
+    imagePullPolicy: Always
+    workingDir: /home/jenkins/agent
+    env:
+    - name: JENKINS_URL
+      value: http://jenkins.default:8080
+    - name: "JENKINS_TUNNEL"
+      value: "jenkins-agent.default:50000"
+    volumeMounts:
+      - mountPath: "/home/jenkins/agent"
+        name: "workspace-volume"
+        readOnly: false
+  - name: makisu
+    image: index.alauda.cn/alaudak8s/makisu:debug
     imagePullPolicy: Always
     command:
-    - /busybox/cat
+    - cat
     tty: true
+    workingDir: "/home/jenkins/agent"
     volumeMounts:
-      - name: jenkins-docker-cfg
-        mountPath: /kaniko/.docker
+      - mountPath: "/home/jenkins/agent"
+        name: "workspace-volume"
+        readOnly: false
   volumes:
-  - name: jenkins-docker-cfg
-    projected:
-      sources:
-      - secret:
-          name: regcred
-          items:
-            - key: .dockerconfigjson
-              path: config.json
-"""
-  ) {
+    - emptyDir:
+      medium: ""
+      name: "workspace-volume"
+'''
+    }
+  }
+  stages {
+    stage("Clone"){
+        steps{
+            git url:"https://github.com/danielfbm/ko-example.git"
+        }
+    }
+    stage('Build') {
+      steps {
+          script{
 
-  node(POD_LABEL) {
-    stage('Build with Kaniko') {
-      git 'https://github.com/jenkinsci/docker-jnlp-slave.git'
-      container('kaniko') {
-        sh '/kaniko/executor -f `pwd`/Dockerfile -c `pwd` --insecure --skip-tls-verify --cache=true --destination=mydockerregistry:5000/myorg/myimage'
+          
+        container(name: 'makisu') {
+            withCredentials([usernamePassword(credentialsId: 'daniel-jfrog', passwordVariable: 'PASS', usernameVariable: 'USER')]) {
+                withCredentials([usernamePassword(credentialsId: 'daniel-index', passwordVariable: 'IPASS', usernameVariable: 'IUSER')]) {
+                    sh """
+mkdir -p $HOME
+cat << EOF > $HOME/makisu.yaml
+index.docker.io:
+  .*:
+    security:
+      tls:
+        client:
+          disabled: false
+      basic:
+        username: ""
+        password: ""
+index.alauda.cn:
+  .*:
+    security:
+      basic:
+        username: "${IUSER}"
+        password: "${IPASS}"
+jfrog-demo.alauda.cn:
+  .*:
+    security:
+      tls:
+        client:
+          disabled: false
+      basic:
+        username: "${USER}"
+        password: "${PASS}"
+EOF
+"""
+                }
+            }
+            sh "/makisu-internal/makisu build --log-fmt console --preserve-root --log-level=debug --modifyfs=true --registry-config=$HOME/makisu.yaml --push=index.alauda.cn -t alaudak8s/ko-example-makisu . "
+           
+        }
+        }
       }
     }
   }

@@ -1,3 +1,0 @@
-FROM docker.io/centos/nodejs-8-centos7
-
-RUN npm config set registry https://registry.npm.taobao.org 

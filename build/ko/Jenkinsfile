@@ -5,7 +5,7 @@ pipeline {
       yaml '''
 kind: Pod
 metadata:
-  name: kaniko
+  name: ko
 spec:
   containers:
   - name: jnlp
@@ -21,8 +21,8 @@ spec:
       - mountPath: "/home/jenkins/agent"
         name: "workspace-volume"
         readOnly: false
-  - name: kaniko
-    image: index.alauda.cn/alaudak8s/kaniko:debug
+  - name: ko
+    image: index.alauda.cn/alaudak8s/ko:latest
     imagePullPolicy: Always
     command:
     - cat
@@ -46,39 +46,20 @@ spec:
         }
     }
     stage('Build') {
+        environment {
+                KO_DOCKER_REPO = "jfrog-demo.alauda.cn/docker"
+            }
       steps {
           script{
+              container('ko') {
 
-          
-        container(name: 'kaniko') {
-            withCredentials([usernamePassword(credentialsId: 'daniel-index', passwordVariable: 'PASS', usernameVariable: 'USER')]) {
+                withCredentials([usernamePassword(credentialsId: 'daniel-jfrog', passwordVariable: 'PASS', usernameVariable: 'USER')]) {
                     def authBase = sh script:"echo ${USER}:${PASS} | base64", returnStdout: true
-                    authBase = authBase.replace("\n", "")
-                    sh """
-echo ${authBase}
-mkdir -p /kaniko/.docker/
-cat << EOF > /kaniko/.docker/config.json
-{
-  "auths": {
-     "index.alauda.cn": {
-       "auth": "${authBase}"
-     },
-     "https://index.alauda.cn": {
-       "auth": "${authBase}"
-     }
-  }
-}
-EOF
-"""
-            sh script: """
-                /kaniko/executor --dockerfile ./Dockerfile \
-                    --destination index.alauda.cn/alaudak8s/ko-example-kaniko \
-                    --context $WORKSPACE \
-                    --cache=true
-            """
-            }
-            }
-        }
+                    sh "docker login $KO_DOCKER_REPO -u ${USER} -p ${PASS}"
+                }
+                sh script: "ko publish github.com/danielfbm/ko-example", label:"ko publish github.com/danielfbm/ko-example"
+              }
+          }
       }
     }
   }
